@@ -1,6 +1,8 @@
 ---
 title: "Rworksheet 6 Final Project"
-output: pdf_document
+output:
+  html_document:
+    df_print: paged
 date: "2023-12-22"
 ---
 
