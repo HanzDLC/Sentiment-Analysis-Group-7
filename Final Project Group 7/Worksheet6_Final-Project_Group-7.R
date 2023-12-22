@@ -9,6 +9,7 @@ library(syuzhet)
 library(stringr)
 library(tm)
 library(wordcloud)
+library(readr)
 # Spirit Airline Review
 
 polite::use_manners(save_as = "polite_scrape.R")
@@ -60,3 +61,80 @@ airline_df <- data.frame(
 )
 cleanedAirlineDF <- distinct(airline_df)
 View(cleanedAirlineDF)
+
+
+
+
+write.csv(airline_df, "airlineDataSet.csv", row.names = FALSE)
+
+cleaned_text <- cleanedAirlineDF$Review
+cleaned_text <- gsub("\\|", "", cleaned_text)
+cleaned_text <- gsub("\\s+", " ", cleaned_text)
+cleaned_text <- gsub("[[:punct:]]", "", cleaned_text)
+cleaned_text <- gsub("[[:digit:]]", "", cleaned_text)
+cleaned_text <- str_replace_all(cleaned_text, "[^a-zA-Z0-9]", " ")
+cleaned_text <- gsub("c✅ Trip Verified \\| ", "",  cleaned_text)
+cleaned_text <- gsub("✅ Trip Verified \\| ", "",  cleaned_text)
+head(cleaned_text)[1:5]
+
+#Word Corpus
+wordCorpus <- Corpus(VectorSource(cleaned_text))
+wordCorpus <- tm_map(wordCorpus, content_transformer(tolower))
+wordCorpus <- tm_map(wordCorpus, removePunctuation)
+wordCorpus[[1]]$content
+wordCorpus <- tm_map(wordCorpus, removeNumbers)
+wordCorpus <- tm_map(wordCorpus, content_transformer(tolower))
+wordCorpus[[1]]$content
+wordCorpus <- tm_map(wordCorpus, removeWords, stopwords("ENGLISH"))
+wordCorpus <- tm_map(wordCorpus, removeWords, stopwords("english"))
+wordCorpus <- tm_map(wordCorpus, removeWords, stopwords("SMART"))
+wordCorpus[[1]]$content
+wordCorpus <- tm_map(wordCorpus, stripWhitespace)
+wordCorpus$content[1:10]
+
+wordCorpus <- tm_map(wordCorpus, removeWords, c("usd", "lb", "ft", "fl", "lauderdale", "rep", "ive", "ei", "ktn", "til", "im", "wont", "pm",
+                                                "theyre", "st", "nickle", "lbs" , "lax", "ca", "till", "theyll", "youre", "tvs", "id", "jingyao", "li", "stl", "ill",
+                                                "sdq", "hr", "yrs", "nk", "hr", "mco", "fll", "didnt", "ubers", "sna", "emailtext", "checkin",
+                                                "wasnt", "youll", "couldnt", "noshow", "az", "dr", "checkedcarry", "elses", "isnt", "weve",
+                                                "lyft", "customercentric", "lastminute", "careurgency", "bwi", "jetblues", "theyve", "hotelfooduberect",
+                                                "iad", "carrion", "costumer"))
+wordCorpus <- tm_map(wordCorpus, removeWords, c("la atl","lax","emailtext","tn tx","sna","ceo","tiktok","wifi","tvs","jingyao","stl","lbs","nk","sdq","airbnb","usd","ish","yrs","ga","augusta","fla","hordourves","az","noshow","dfw","hrs","bna","mco","fll","ryanair","tsa","iad","formy","hotelfooduberect","iad","jetblues","jetblue","usa","bwi","vr","fl","fll","careurgency","sonja","expediacom",
+                                                "customercentric","airbnb","lyft","companys","empathy ten vuelo para las pm cada minutos nos atrasaban el vuelo al punto las nos cancelan el vuelo para decir nos pueden acomodar el el vuelo de las del peoximo con ni os peque os sufriendo por la espera es la primera vez viajaba con spirit ser la ltima por la voy 
+                                                recomendar ni pienso volver utilizarla sirven poca empat","york","nyc","dimeing","checkedcarry", "the", "was", "they", "had", "this", "havethat", "have", "that","and", "our", "are", "with", "but", "for", "their", "which", "this", "were", "will", "then", "would", "just", "when", "this" , "the", "dont", "this"))
+
+wordCorpus <- tm_map(wordCorpus, stripWhitespace)
+
+wordCorpus$content[1:300]
+
+
+set.seed(1234) # for reproducibility
+wordcloud(words = wordCorpus, min.freq = 1,
+          max.words=200, random.order=FALSE, rot.per=0.35,
+          colors=brewer.pal(8, "Dark2"))
+
+
+airlineP <- data.frame(text = sapply(wordCorpus, as.character), stringsAsFactors = FALSE)
+airlineSentiments <- get_sentiment(airlineP$text,method = "syuzhet")
+airlineReviews <- cbind(airlineP, airlineSentiments)
+#positive and negative sentiments
+encodeSentiment <- function(x) {
+  if (x <= -0.5) {
+    "1) very negative"
+  } else if (x > -0.5 & x < 0) {
+    "2) negative"
+  } else if (x > 0 & x < 0.5) {
+    "4) positive"
+  } else if (x >= 0.5) {
+    "5) very positive"
+  } else {
+    "3) neutral"
+  }
+}
+
+airlineReviews$airlineSentiments <- sapply(airlineReviews$airlineSentiments,encodeSentiment)
+
+ggplot(airlineReviews, aes(airlineSentiments, fill = airlineSentiments)) +
+  geom_bar() +
+  theme(legend.position="none", axis.title.x = element_blank()) +
+  ylab("Number of tweets") +
+  ggtitle("Tweets by Sentiment")
